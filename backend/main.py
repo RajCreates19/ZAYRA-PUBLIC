@@ -1,40 +1,17 @@
-# ============================================================
-# ZAYRA - VERCEL BACKEND + FRONTEND
-# ============================================================
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from pathlib import Path
-import sys
-
-
-# ============================================================
-# PROJECT PATHS
-# ============================================================
-
-BACKEND = Path(__file__).resolve().parent
-PROJECT_ROOT = BACKEND.parent
-FRONTEND = PROJECT_ROOT / "frontend"
-ASSETS = FRONTEND / "assets"
-
-
-# ============================================================
-# LOAD AI ENGINE
-# ============================================================
-
-sys.path.insert(0, str(BACKEND))
+from pydantic import BaseModel
+import traceback
 
 from AI import chat_with_zayra
 
 
 # ============================================================
-# CREATE APP
+# ZAYRA FASTAPI BACKEND
 # ============================================================
 
 app = FastAPI(
     title="ZAYRA AI",
-    description="ZAYRA AI Backend",
     version="1.0.0"
 )
 
@@ -47,9 +24,25 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=False,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ============================================================
+# REQUEST MODEL
+# ============================================================
+
+class ChatRequest(BaseModel):
+    message: str
+
+
+# ============================================================
+# RESPONSE MODEL
+# ============================================================
+
+class ChatResponse(BaseModel):
+    reply: str
 
 
 # ============================================================
@@ -78,23 +71,22 @@ async def api_status():
 
 
 # ============================================================
-# MAIN CHAT API
+# CHAT API
 # ============================================================
 
-@app.post("/api/chat")
-async def chat(request: dict):
+@app.post("/api/chat", response_model=ChatResponse)
+async def chat(request: ChatRequest):
 
-    message = request.get("message", "")
-
-    if not isinstance(message, str):
-        message = str(message)
-
-    message = message.strip()
+    message = request.message.strip()
 
     if not message:
-        return {
-            "reply": "Please enter a message."
-        }
+        return ChatResponse(
+            reply="Please enter a message."
+        )
+
+    print("========== ZAYRA REQUEST ==========")
+    print("Message:", message)
+    print("===================================")
 
     try:
 
@@ -105,60 +97,28 @@ async def chat(request: dict):
 
         reply = str(reply).strip()
 
-        if not reply:
-            return {
-                "reply": "ZAYRA could not generate a response."
-            }
+        print("========== ZAYRA RESPONSE ==========")
+        print(reply)
+        print("====================================")
 
-        return {
-            "reply": reply
-        }
+        if not reply:
+            return ChatResponse(
+                reply="ZAYRA returned an empty response."
+            )
+
+        return ChatResponse(
+            reply=reply
+        )
 
     except Exception as error:
 
-        print(
-            "[ZAYRA ERROR]",
-            str(error)
+        print("========== ZAYRA BACKEND ERROR ==========")
+        print("ERROR:", str(error))
+        print()
+        print("FULL TRACEBACK:")
+        traceback.print_exc()
+        print("=========================================")
+
+        return ChatResponse(
+            reply="ZAYRA ran into a backend error. Please try again."
         )
-
-        return {
-            "reply":
-            "ZAYRA ran into a problem while answering. Please try again."
-        }
-
-
-# ============================================================
-# FRONTEND
-# ============================================================
-
-app.mount(
-    "/",
-    StaticFiles(
-        directory=str(FRONTEND),
-        html=True
-    ),
-    name="frontend"
-)
-
-
-# ============================================================
-# STARTUP MESSAGE
-# ============================================================
-
-@app.on_event("startup")
-async def startup():
-
-    print()
-    print("=" * 55)
-    print("              ZAYRA VERCEL BACKEND")
-    print("=" * 55)
-    print()
-    print("Backend  : READY")
-    print("Frontend : READY")
-    print("AI Engine: READY")
-    print("API      : READY")
-    print()
-    print("Endpoint : /api/chat")
-    print()
-    print("=" * 55)
-    print()
