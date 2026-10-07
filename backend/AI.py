@@ -1,179 +1,134 @@
-# ============================================================
-# ZAYRA - AI ENGINE
-# ============================================================
-
 import json
 import urllib.request
 import urllib.error
-from pathlib import Path
+import os
 
 
 # ============================================================
-# 1. FIXED BACKEND LOCATION
+# ZAYRA AI CONFIGURATION
 # ============================================================
 
-BACKEND = Path("/storage/emulated/0/ZAYRA/backend")
-CONFIG = BACKEND / "config.py"
+API_KEY = os.getenv("GEMINI_API_KEY")
 
-
-# ============================================================
-# 2. CHECK CONFIG FILE
-# ============================================================
-
-if not CONFIG.exists():
-    raise FileNotFoundError(
-        "config.py was not found at:\n"
-        + str(CONFIG)
-    )
-
-
-# ============================================================
-# 3. LOAD CONFIG.PY
-# ============================================================
-
-config_data = {}
-
-with open(
-    CONFIG,
-    "r",
-    encoding="utf-8"
-) as file:
-
-    config_code = file.read()
-
-exec(
-    config_code,
-    config_data
-)
-
-
-API_KEY = config_data.get("API_KEY")
-MODEL = config_data.get(
-    "MODEL",
+MODEL = os.getenv(
+    "GEMINI_MODEL",
     "gemini-3.5-flash-lite"
 )
 
-
 if not API_KEY:
     raise ValueError(
-        "API_KEY is missing in config.py"
+        "GEMINI_API_KEY environment variable is missing."
     )
 
 
 # ============================================================
-# 4. GEMINI API URL
+# GEMINI API
 # ============================================================
 
 API_URL = (
-    "https://generativelanguage.googleapis.com/"
+    f"https://generativelanguage.googleapis.com/"
     f"v1beta/models/{MODEL}:generateContent"
 )
 
 
 # ============================================================
-# 5. ZAYRA BEHAVIOUR
+# ZAYRA SYSTEM INSTRUCTION
 # ============================================================
 
 SYSTEM_INSTRUCTION = """
-You are ZAYRA, a helpful general-purpose AI assistant.
+You are ZAYRA, a helpful AI assistant.
 
-Answer the user's questions naturally and clearly.
+Your answers should be:
+- Clear
+- Accurate
+- Helpful
+- Easy to understand
+- Concise when the user asks for a short answer
 
-Important behavior:
+If the user asks for an explanation, explain step by step when useful.
 
-- Be concise by default.
-- Give more detail when the user asks for it.
-- Use simple and understandable language.
-- Maintain conversation context.
-- Do not unnecessarily repeat the user's question.
-- For educational questions, explain clearly and step by step when useful.
-- If the user asks for a short answer, keep the answer short.
-- If the user asks for examples, provide useful examples.
-- Be conversational and helpful.
+Do not claim to have abilities or access that you do not actually have.
 """
 
 
 # ============================================================
-# 6. CONVERSATION HISTORY
+# CHAT FUNCTION
 # ============================================================
 
-conversation_history = []
+def chat_with_zayra(message, history=None):
 
-
-# ============================================================
-# 7. MAIN ZAYRA FUNCTION
-# ============================================================
-
-def chat_with_zayra(message):
-
-    global conversation_history
-
-    message = str(message).strip()
-
-    if not message:
+    if not message or not message.strip():
         return "Please enter a message."
 
+    if history is None:
+        history = []
 
-    # --------------------------------------------------------
-    # Add user message
-    # --------------------------------------------------------
+    # Keep only recent conversation
+    history = history[-20:]
 
-    conversation_history.append(
-        {
-            "role": "user",
-            "parts": [
-                {
-                    "text": message
-                }
-            ]
-        }
-    )
+    contents = []
 
+    # Previous conversation
+    for item in history:
 
-    # --------------------------------------------------------
-    # Limit history
-    # --------------------------------------------------------
+        role = item.get("role")
+        text = item.get("text", "")
 
-    if len(conversation_history) > 20:
+        if not text:
+            continue
 
-        conversation_history = (
-            conversation_history[-20:]
-        )
+        if role == "user":
+            contents.append({
+                "role": "user",
+                "parts": [
+                    {
+                        "text": text
+                    }
+                ]
+            })
 
+        elif role == "assistant":
+            contents.append({
+                "role": "model",
+                "parts": [
+                    {
+                        "text": text
+                    }
+                ]
+            })
 
-    # --------------------------------------------------------
-    # Prepare Gemini request
-    # --------------------------------------------------------
+    # Current user message
+    contents.append({
+        "role": "user",
+        "parts": [
+            {
+                "text": message
+            }
+        ]
+    })
 
-    request_data = {
-
-        "system_instruction": {
+    payload = {
+        "systemInstruction": {
             "parts": [
                 {
                     "text": SYSTEM_INSTRUCTION
                 }
             ]
         },
-
-        "contents": conversation_history
+        "contents": contents,
+        "generationConfig": {
+            "temperature": 0.7,
+            "maxOutputTokens": 1024
+        }
     }
 
-
-    request_body = json.dumps(
-        request_data
-    ).encode("utf-8")
-
-
-    # ========================================================
-    # 8. CREATE REQUEST
-    # ========================================================
+    data = json.dumps(payload).encode("utf-8")
 
     request = urllib.request.Request(
         API_URL,
-        data=request_body,
+        data=data,
         method="POST"
     )
-
 
     request.add_header(
         "Content-Type",
@@ -185,11 +140,6 @@ def chat_with_zayra(message):
         API_KEY
     )
 
-
-    # ========================================================
-    # 9. SEND REQUEST
-    # ========================================================
-
     try:
 
         with urllib.request.urlopen(
@@ -197,38 +147,16 @@ def chat_with_zayra(message):
             timeout=60
         ) as response:
 
-            response_text = (
-                response
-                .read()
-                .decode("utf-8")
+            response_data = response.read().decode(
+                "utf-8"
             )
 
+            result = json.loads(response_data)
 
-        result = json.loads(
-            response_text
-        )
-
-
-        # ----------------------------------------------------
-        # Check candidates
-        # ----------------------------------------------------
-
-        candidates = result.get(
-            "candidates",
-            []
-        )
-
+        candidates = result.get("candidates", [])
 
         if not candidates:
-
-            return (
-                "ZAYRA could not generate a response."
-            )
-
-
-        # ----------------------------------------------------
-        # Extract response
-        # ----------------------------------------------------
+            return "ZAYRA could not generate a response."
 
         content = candidates[0].get(
             "content",
@@ -240,151 +168,89 @@ def chat_with_zayra(message):
             []
         )
 
+        if not parts:
+            return "ZAYRA returned an empty response."
 
-        answer_parts = []
-
-
-        for part in parts:
-
-            text = part.get("text")
-
-            if text:
-
-                answer_parts.append(
-                    text
-                )
-
-
-        answer = "\n".join(
-            answer_parts
-        ).strip()
-
-
-        if not answer:
-
-            return (
-                "ZAYRA returned an empty response."
-            )
-
-
-        # ----------------------------------------------------
-        # Save model response
-        # ----------------------------------------------------
-
-        conversation_history.append(
-            {
-                "role": "model",
-                "parts": [
-                    {
-                        "text": answer
-                    }
-                ]
-            }
+        text = parts[0].get(
+            "text",
+            ""
         )
 
+        if not text:
+            return "ZAYRA returned an empty response."
 
-        return answer
-
-
-    # ========================================================
-    # 10. GEMINI HTTP ERROR
-    # ========================================================
+        return text.strip()
 
     except urllib.error.HTTPError as error:
 
         try:
-
-            error_text = (
-                error
-                .read()
-                .decode("utf-8")
+            error_body = error.read().decode(
+                "utf-8"
             )
-
         except Exception:
-
-            error_text = (
-                "No additional error information."
-            )
-
+            error_body = ""
 
         return (
-            f"Gemini API Error ({error.code})\n\n"
-            f"{error_text}"
+            f"Gemini API Error ({error.code}): "
+            f"{error_body}"
         )
-
-
-    # ========================================================
-    # 11. NETWORK ERROR
-    # ========================================================
 
     except urllib.error.URLError as error:
 
         return (
-            "ZAYRA could not connect to Gemini.\n\n"
-            f"{error}"
+            "Network error while connecting "
+            f"to Gemini: {error.reason}"
         )
-
-
-    # ========================================================
-    # 12. OTHER ERROR
-    # ========================================================
 
     except Exception as error:
 
         return (
-            "ZAYRA encountered an unexpected error.\n\n"
-            f"{type(error).__name__}: {error}"
+            "Unexpected ZAYRA error: "
+            f"{str(error)}"
         )
 
 
 # ============================================================
-# 13. DIRECT TEST
+# DIRECT TEST
 # ============================================================
 
 if __name__ == "__main__":
 
-    print()
-    print("=" * 55)
-    print("             ZAYRA AI ENGINE")
-    print("=" * 55)
+    print("ZAYRA AI test started.")
+    print("Type 'exit' to stop.\n")
 
-    print()
-    print("Config       : FOUND")
-    print("API Key      : FOUND")
-    print("Model        :", MODEL)
-    print("AI Status    : READY")
-
-    print()
-    print("-" * 55)
+    history = []
 
     while True:
 
-        question = input(
-            "You: "
-        ).strip()
+        try:
+            user_message = input("You: ")
 
-
-        if question.lower() in {
-            "exit",
-            "quit",
-            "bye"
-        }:
-
-            print()
-            print("ZAYRA: Goodbye!")
+        except KeyboardInterrupt:
+            print("\nZAYRA stopped.")
             break
 
+        if user_message.lower().strip() == "exit":
+            print("ZAYRA stopped.")
+            break
 
-        if not question:
+        if not user_message.strip():
             continue
 
-
-        print()
-        print("ZAYRA:")
-
-        answer = chat_with_zayra(
-            question
+        reply = chat_with_zayra(
+            user_message,
+            history
         )
 
-        print(answer)
+        print("\nZAYRA:", reply)
         print()
+
+        history.append({
+            "role": "user",
+            "text": user_message
+        })
+
+        history.append({
+            "role": "assistant",
+            "text": reply
+        })
