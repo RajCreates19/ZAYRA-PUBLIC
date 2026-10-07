@@ -7,6 +7,7 @@ from pathlib import Path
 import sys
 import json
 import os
+import mimetypes
 
 
 # ============================================================
@@ -18,6 +19,8 @@ BACKEND = Path(__file__).resolve().parent
 PROJECT_ROOT = BACKEND.parent
 
 FRONTEND = PROJECT_ROOT / "frontend"
+
+ASSETS = FRONTEND / "assets"
 
 
 # ============================================================
@@ -216,6 +219,22 @@ class ZAYRAServer(BaseHTTPRequestHandler):
     def do_GET(self):
 
         # ----------------------------------------------------
+        # Health check
+        # ----------------------------------------------------
+
+        if self.path == "/health":
+
+            self.send_json(
+                {
+                    "status": "ok",
+                    "service": "ZAYRA backend"
+                }
+            )
+
+            return
+
+
+        # ----------------------------------------------------
         # Main page
         # ----------------------------------------------------
 
@@ -252,6 +271,66 @@ class ZAYRAServer(BaseHTTPRequestHandler):
             self.send_file(
                 JS_FILE,
                 "application/javascript; charset=utf-8"
+            )
+
+            return
+
+
+        # ----------------------------------------------------
+        # Assets
+        # ----------------------------------------------------
+
+        if self.path.startswith("/assets/"):
+
+            relative_path = self.path[
+                len("/assets/"):
+            ]
+
+
+            # Prevent path traversal
+            if (
+                ".." in Path(relative_path).parts
+                or relative_path.startswith("/")
+            ):
+
+                self.send_error(
+                    403,
+                    "Access denied."
+                )
+
+                return
+
+
+            asset_file = (
+                ASSETS / relative_path
+            )
+
+
+            if not asset_file.exists() or not asset_file.is_file():
+
+                self.send_error(
+                    404,
+                    "Asset not found."
+                )
+
+                return
+
+
+            content_type, _ = mimetypes.guess_type(
+                str(asset_file)
+            )
+
+
+            if not content_type:
+
+                content_type = (
+                    "application/octet-stream"
+                )
+
+
+            self.send_file(
+                asset_file,
+                content_type
             )
 
             return
@@ -469,6 +548,7 @@ print()
 print("Backend  : READY")
 print("AI Engine: READY")
 print("Frontend : READY")
+print("Assets   : READY")
 print("API      : READY")
 print()
 print("Port     :", PORT)
