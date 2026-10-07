@@ -1,9 +1,10 @@
 # ============================================================
-# ZAYRA - VERCEL BACKEND ENTRYPOINT
+# ZAYRA - VERCEL BACKEND + FRONTEND
 # ============================================================
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 import sys
 
@@ -28,7 +29,7 @@ from AI import chat_with_zayra
 
 
 # ============================================================
-# CREATE FASTAPI APP
+# CREATE APP
 # ============================================================
 
 app = FastAPI(
@@ -64,71 +65,54 @@ async def health():
 
 
 # ============================================================
+# API STATUS
+# ============================================================
+
+@app.get("/api")
+async def api_status():
+    return {
+        "service": "ZAYRA AI",
+        "status": "online",
+        "endpoint": "/api/chat"
+    }
+
+
+# ============================================================
 # MAIN CHAT API
 # ============================================================
 
 @app.post("/api/chat")
 async def chat(request: dict):
 
-    # --------------------------------------------------------
-    # Get message
-    # --------------------------------------------------------
-
     message = request.get("message", "")
-
-
-    # --------------------------------------------------------
-    # Validate message
-    # --------------------------------------------------------
 
     if not isinstance(message, str):
         message = str(message)
 
-
     message = message.strip()
-
 
     if not message:
         return {
             "reply": "Please enter a message."
         }
 
-
-    # --------------------------------------------------------
-    # Send message to ZAYRA AI engine
-    # --------------------------------------------------------
-
     try:
 
         reply = chat_with_zayra(message)
 
-
-        # ----------------------------------------------------
-        # Make sure reply is valid
-        # ----------------------------------------------------
-
         if reply is None:
             reply = ""
 
-
         reply = str(reply).strip()
 
-
         if not reply:
-
             return {
                 "reply": "ZAYRA could not generate a response."
             }
 
-
-        # ----------------------------------------------------
-        # Send reply
-        # ----------------------------------------------------
-
         return {
             "reply": reply
         }
-
 
     except Exception as error:
 
@@ -137,7 +121,6 @@ async def chat(request: dict):
             str(error)
         )
 
-
         return {
             "reply":
             "ZAYRA ran into a problem while answering. Please try again."
@@ -145,17 +128,17 @@ async def chat(request: dict):
 
 
 # ============================================================
-# ROOT TEST ENDPOINT
+# FRONTEND
 # ============================================================
 
-@app.get("/api")
-async def api_status():
-
-    return {
-        "service": "ZAYRA AI",
-        "status": "online",
-        "endpoint": "/api/chat"
-    }
+app.mount(
+    "/",
+    StaticFiles(
+        directory=str(FRONTEND),
+        html=True
+    ),
+    name="frontend"
+)
 
 
 # ============================================================
@@ -171,6 +154,7 @@ async def startup():
     print("=" * 55)
     print()
     print("Backend  : READY")
+    print("Frontend : READY")
     print("AI Engine: READY")
     print("API      : READY")
     print()
