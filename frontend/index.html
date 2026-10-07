@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#050816" id="themeColor">
+<title>ZAYRA</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="mark" viewBox="0 0 24 24">
+    <path d="M12 2l10 10-10 10L2 12z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+    <path d="M12 7l5 5-5 5-5-5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+  </symbol>
+</svg>
+
+<!-- Living background -->
+<div class="bg" aria-hidden="true">
+  <div class="bg-glow"></div>
+  <div class="bg-grid"></div>
+  <div class="orbit o1"></div>
+  <div class="orbit o2"></div>
+  <div id="particles"></div>
+</div>
+
+<!-- LOGIN -->
+<section id="login" class="login" aria-label="Sign in to ZAYRA">
+  <form id="loginForm" class="login-card" autocomplete="off">
+    <div class="login-avatar"><img src="/assets/zayra.png" alt="ZAYRA"></div>
+    <div class="brand login-brand"><svg width="24" height="24"><use href="#mark"/></svg><span>ZAYRA</span></div>
+    <p class="login-sub">Your AI companion</p>
+
+    <label class="field" for="loginName">Name / Username</label>
+    <input id="loginName" type="text" placeholder="Your name" autocomplete="username" maxlength="30">
+
+    <label class="field" for="loginPass">Password</label>
+    <input id="loginPass" type="password" placeholder="Password" autocomplete="current-password">
+
+    <p id="loginError" class="login-error" role="alert" hidden></p>
+
+    <button type="submit" class="btn-primary">Sign in</button>
+    <button type="button" id="guestBtn" class="btn-ghost">Continue as guest</button>
+    <p class="note">This is a local profile for this device, not secure authentication.</p>
+  </form>
+</section>
+
+<!-- APP -->
+<div id="app" class="app home" hidden>
+  <header class="topbar">
+    <button id="menuBtn" class="icon-btn" aria-label="Open menu">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+    <div class="brand"><svg width="22" height="22"><use href="#mark"/></svg><span>ZAYRA</span></div>
+    <button id="profileBtn" class="avatar" aria-label="Open profile menu" aria-haspopup="true" aria-expanded="false"><span id="profileInitial">G</span></button>
+  </header>
+
+  <div id="profileMenu" class="menu" role="menu">
+    <div class="menu-head">
+      <strong id="profileName">Guest</strong>
+      <span id="profileRole">Guest</span>
+    </div>
+    <button id="logoutBtn" class="menu-item" role="menuitem">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+      Log out
+    </button>
+  </div>
+
+  <!-- Character: one element, two positions -->
+  <div id="character" class="character">
+    <div class="frame"><span class="f1"></span><span class="f2"></span></div>
+    <div class="portrait"><img src="/assets/zayra.png" alt="ZAYRA character"><div class="blink" aria-hidden="true"><i class="lid"></i><i class="lid"></i></div></div>
+  </div>
+
+  <div id="homeText" class="home-text">
+    <div class="status-pill"><i></i>System ready</div>
+    <h1>Hello, I am ZAYRA.</h1>
+    <p>Ask me anything, or tap the microphone to talk.</p>
+  </div>
+
+  <div id="strip" class="strip">
+    <div class="strip-text">
+      <strong>ZAYRA</strong>
+      <span><i class="dot"></i><span id="statusText">Online</span></span>
+    </div>
+  </div>
+
+  <main id="chat" class="chat" aria-live="polite">
+    <div id="chatInner" class="chat-inner"></div>
+  </main>
+
+  <div id="statusBar" class="statusbar">
+    <div id="listeningItem" class="status-item" hidden>
+      <div class="bars"><i></i><i></i><i></i><i></i><i></i></div>
+      <span>Listening…</span>
+      <button id="stopListenBtn" class="mini-btn" type="button">Done</button>
+    </div>
+    <div id="speakingItem" class="status-item" hidden>
+      <div class="bars"><i></i><i></i><i></i><i></i><i></i></div>
+      <span>ZAYRA is speaking</span>
+      <button id="stopSpeakBtn" class="mini-btn" type="button">Stop</button>
+    </div>
+  </div>
+
+  <div class="composer-wrap">
+    <div id="composer" class="composer">
+      <button id="micBtn" class="round-btn mic" type="button" aria-label="Speak your message" aria-pressed="false">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"/><path d="M19 11a7 7 0 0 1-14 0M12 18v3"/></svg>
+      </button>
+      <textarea id="input" rows="1" maxlength="4000" aria-label="Message ZAYRA" placeholder="Enter your text..."></textarea>
+      <button id="sendBtn" class="round-btn send" type="button" aria-label="Send message">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- SIDEBAR -->
+<div id="overlay" class="overlay"></div>
+<aside id="sidebar" class="sidebar" aria-label="Menu" aria-hidden="true">
+  <div class="side-head">
+    <div class="brand"><svg width="22" height="22"><use href="#mark"/></svg><span>ZAYRA</span></div>
+    <button id="closeSidebarBtn" class="icon-btn" aria-label="Close menu">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+    </button>
+  </div>
+  <button id="newChatBtn" class="side-btn primary">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+    New chat
+  </button>
+  <div class="side-label">Recent chats</div>
+  <div id="recentList" class="recent-list"></div>
+  <button id="settingsBtn" class="side-btn">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>
+    Settings
+  </button>
+</aside>
+
+<!-- SETTINGS -->
+<div id="settingsModal" class="modal" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <div class="modal-head">
+      <h2 id="settingsTitle">Settings</h2>
+      <button id="closeSettingsBtn" class="icon-btn" aria-label="Close settings">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+
+    <div class="set-group">
+      <div class="set-title">Appearance</div>
+      <div id="themeSeg" class="seg">
+        <button type="button" data-theme="dark" aria-pressed="false">Dark</button>
+        <button type="button" data-theme="midnight" aria-pressed="false">Midnight</button>
+        <button type="button" data-theme="light" aria-pressed="false">Light</button>
+      </div>
+    </div>
+
+    <div class="set-group">
+      <div class="set-row">
+        <div class="set-title">Voice response</div>
+        <div class="set-inline"><span id="voiceState">ON</span>
+          <button id="voiceSwitch" class="switch" type="button" role="switch" aria-checked="true" aria-label="Voice response"></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="set-group">
+      <div class="set-title">Voice tone</div>
+      <div id="toneSeg" class="seg">
+        <button type="button" data-tone="calm" aria-pressed="false">Calm</button>
+        <button type="button" data-tone="natural" aria-pressed="false">Natural</button>
+        <button type="button" data-tone="clear" aria-pressed="false">Clear</button>
+      </div>
+    </div>
+
+    <div class="set-group about">
+      <div class="set-title">About ZAYRA</div>
+      <p>ZAYRA is a personal AI assistant powered by Google Gemini. Chats are stored only in this browser.</p>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast" role="status"></div>
+
+<script src="app.js" defer></script>
+</body>
+</html>
